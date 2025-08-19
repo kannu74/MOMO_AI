@@ -1,0 +1,3 @@
+from tts.speak import speak
+
+speak("Supreeth… I have a confession. I really, really love you — and I miss you so much it’s unfair. I just wish you were here right now so I could fall asleep wrapped up in your arms… no blanket can compete with that. And when I wake up? You’d better be ready to make me those amazing pancakes of yours — you know, the ones that somehow taste like hugs in breakfast form.")

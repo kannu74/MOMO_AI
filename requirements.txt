@@ -1,0 +1,14 @@
+openai
+python-dotenv
+edge-tts
+playsound==1.2.2
+pyttsx3
+pydub
+simpleaudio
+faster-whisper
+sounddevice
+numpy
+openwakeword
+onnxruntime
+webrtcvad
+elevenlabs

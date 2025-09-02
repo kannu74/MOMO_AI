@@ -12,3 +12,8 @@ openwakeword
 onnxruntime
 webrtcvad
 elevenlabs
+pyglet
+panda3d 
+panda3d-gltf
+PyQt6
+PyGithub

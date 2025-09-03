@@ -124,7 +124,19 @@ def main(ui_queue, tts_finished_event):
                                     
                                     elif function_name == "git_commit_and_push":
                                         response_to_speak = actions.git_commit_and_push(current_project_path, command.get("message"))
-
+                                        
+                                    elif function_name == "set_repo_context":
+                                        message, repo_name = actions.set_repo_context(command.get("repo_name"), GITHUB_USERNAME)
+            
+            # --- THIS IS THE NEW LOGIC ---
+                                        if repo_name:
+                                            # If the repo was found, update the context and confirm
+                                            current_repo_name = repo_name
+                                            response_to_speak = message
+                                        else:
+                                            # If it was not found, ask the user for the correct name
+                                            response_to_speak = f"Sorry, I couldn't find a repository named '{command.get('repo_name')}' on your account. What is the correct name?"
+                                        
                                     elif function_name == "get_git_status":
                                         response_to_speak = actions.get_git_status(current_project_path)
 
@@ -133,7 +145,10 @@ def main(ui_queue, tts_finished_event):
 
                                     elif function_name == "git_revert_last_commit":
                                         response_to_speak = actions.git_revert_last_commit(current_project_path)
-
+                                    
+                                    elif function_name == "list_repositories":
+                                        response_to_speak = actions.list_repositories()
+                                        
                                     elif function_name == "explain_clipboard_code":
                                         response_to_speak = actions.explain_clipboard_code(session_id)
 

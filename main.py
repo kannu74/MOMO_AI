@@ -3,10 +3,21 @@ import numpy as np
 import queue
 import re
 import time
+import os
+import sys
+import json
+
+# --- Add project root to path to find custom modules ---
+project_root = os.path.abspath(os.path.dirname(__file__))
+sys.path.insert(0, project_root)
+
+# --- Import Custom Modules ---
 from backend.core import get_gpt_response
 from tts.speak import speak
 from wakeword.detector import owwModel, WAKEWORD_MODEL_NAME
 from stt.listen import transcribe_audio_chunk
+import commands.actions as actions
+from commands.parser import parse_command_with_llm # Using the intelligent LLM parser
 
 # --- Audio Configuration ---
 SAMPLE_RATE = 16000
@@ -22,15 +33,18 @@ class State:
     LISTENING_FOR_COMMAND = 2
 
 def main():
-    """Main loop with corrected timeout and control flow logic."""
+    """Main loop with Developer Mode and LLM-powered command parsing."""
     audio_queue = queue.Queue()
+    current_mode = "normal"
+    current_project_path = None # IMPORTANT: This needs to be set with a voice command
+    current_repo_name = None    # e.g., "your_username/your_reponame"
 
     def audio_callback(indata, frames, time, status):
         if status: print(status)
         audio_queue.put(indata.copy())
 
     with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype='int16', blocksize=CHUNK_SAMPLES, callback=audio_callback):
-        print("--- Assistant running. Say the wake word. ---")
+        print(f"--- Assistant running in {current_mode} mode. Say the wake word. ---")
         current_state = State.WAITING_FOR_WAKE_WORD
 
         while True:
@@ -42,18 +56,14 @@ def main():
 
                 if score > 0.5:
                     print("--- Wake word detected! ---")
-                    
                     speak("Yes?") 
-                    
                     with audio_queue.mutex:
                         audio_queue.queue.clear()
-
                     current_state = State.LISTENING_FOR_COMMAND
-                    print("--- State: LISTENING_FOR_COMMAND (Speak now...) ---")
+                    print(f"--- State: LISTENING (Mode: {current_mode}) ---")
                     command_audio = []
                     silent_chunks = 0
                     has_spoken = False
-                    # FIX: New counter for a reliable timeout
                     chunks_since_prompt = 0
             
             elif current_state == State.LISTENING_FOR_COMMAND:
@@ -73,40 +83,69 @@ def main():
                 else:
                     print(".", end="", flush=True)
 
-                # FIX: Corrected timeout condition
                 timeout = not has_spoken and chunks_since_prompt >= INITIAL_TIMEOUT_CHUNKS
                 end_of_speech = has_spoken and silent_chunks > SILENCE_CHUNKS_NEEDED
                 
                 if end_of_speech or timeout:
                     print()
                     
-                    # --- REFACTORED RESPONSE LOGIC ---
-                    
-                    final_response = ""
                     if not has_spoken:
                         print("--- LISTENING TIMEOUT ---")
-                        final_response = "I didn't hear anything."
+                        speak("I didn't hear anything.")
                     else:
                         print("--- End of speech detected. Processing... ---")
                         full_command_audio = np.concatenate(command_audio)
                         user_input = transcribe_audio_chunk(full_command_audio)
 
                         if user_input:
-                            if any(word in user_input.lower() for word in ["goodbye", "quit", "exit"]):
-                                final_response = "Bye bye, see you later!"
-                            else:
-                                llm_response = get_gpt_response(user_input)
-                                print(f"Momo: {llm_response}")
-                                final_response = re.sub(r'\[.*?\]', '', llm_response).strip()
-                        else:
-                            final_response = "I'm sorry, I couldn't understand that."
-                    
-                    if final_response:
-                        speak(final_response)
+                            response_to_speak = ""
+                            
+                            # --- DEVELOPER MODE & COMMAND DISPATCHER ---
+                            
+                            if "switch to developer mode" in user_input.lower():
+                                current_mode = "developer"
+                                response_to_speak = "Developer mode activated."
+                            elif "switch to normal mode" in user_input.lower():
+                                current_mode = "normal"
+                                response_to_speak = "Normal mode activated."
+                            
+                            elif current_mode == "developer":
+                                command = parse_command_with_llm(user_input)
+                                if command:
+                                    function_name = command.get("function") or command.get("function_name")
+                                    
+                                    if function_name == "set_working_directory":
+                                        response_to_speak, path = actions.set_working_directory(command.get("path_query"))
+                                        if path:
+                                            current_project_path = path
+                                            current_repo_name = f"kannu74/{os.path.basename(path)}"
+                                    
+                                    elif function_name == "create_github_repo":
+                                        response_to_speak = actions.create_github_repo(command.get("repo_name"), command.get("is_private", True))
+                                    
+                                    elif function_name == "suggest_commit_message":
+                                        response_to_speak = actions.suggest_commit_message(current_project_path)
+                                    
+                                    elif function_name == "git_commit_and_push":
+                                        response_to_speak = actions.git_commit_and_push(current_project_path, command.get("message"))
+                                        
+                                    elif function_name == "clarify":
+                                        response_to_speak = command.get("question")
+                                    
+                                    elif function_name == "chat":
+                                        response_to_speak = get_gpt_response(user_input, mode="normal")
+                                else:
+                                    response_to_speak = "Sorry, I had trouble parsing that command."
 
+                            else: # current_mode is "normal"
+                                response_to_speak = get_gpt_response(user_input, mode="normal")
+                            
+                            if response_to_speak:
+                                print(f"Momo: {response_to_speak}")
+                                speak(response_to_speak)
+                    
                     current_state = State.WAITING_FOR_WAKE_WORD
-                    print("\n--- State: WAITING_FOR_WAKE_WORD ---")
-                    # Clear the queue after the turn is fully complete
+                    print(f"\n--- State: WAITING (Mode: {current_mode}) ---")
                     with audio_queue.mutex:
                         audio_queue.queue.clear()
 

@@ -3,7 +3,7 @@ import numpy as np
 import queue
 import re
 import time
-from backend.core import get_gpt_response
+from backend.core import get_gpt_response, initialize_session, get_session_info
 from tts.speak import speak
 from wakeword.detector import owwModel, WAKEWORD_MODEL_NAME
 from stt.listen import transcribe_audio_chunk
@@ -23,6 +23,12 @@ class State:
 
 def main():
     """Main loop with corrected timeout and control flow logic."""
+    # Initialize conversation session
+    session_id = initialize_session()
+    print(f"--- Momo AI Assistant Started ---")
+    print(f"--- Session ID: {session_id} ---")
+    print("--- Say the wake word to begin ---")
+    
     audio_queue = queue.Queue()
 
     def audio_callback(indata, frames, time, status):
@@ -30,7 +36,6 @@ def main():
         audio_queue.put(indata.copy())
 
     with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype='int16', blocksize=CHUNK_SAMPLES, callback=audio_callback):
-        print("--- Assistant running. Say the wake word. ---")
         current_state = State.WAITING_FOR_WAKE_WORD
 
         while True:
@@ -95,7 +100,8 @@ def main():
                             if any(word in user_input.lower() for word in ["goodbye", "quit", "exit"]):
                                 final_response = "Bye bye, see you later!"
                             else:
-                                llm_response = get_gpt_response(user_input)
+                                # Use the new context-aware response system
+                                llm_response = get_gpt_response(user_input, session_id)
                                 print(f"Momo: {llm_response}")
                                 final_response = re.sub(r'\[.*?\]', '', llm_response).strip()
                         else:

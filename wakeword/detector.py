@@ -2,7 +2,7 @@ import openwakeword
 import os
 
 # --- Configuration ---
-WAKEWORD_MODEL_NAME = "hey_momo copy"
+WAKEWORD_MODEL_NAME = "hey_jarvis_v0.1"
 MODEL_PATH = os.path.join("wakeword", "models", f"{WAKEWORD_MODEL_NAME}.onnx")
 
 # --- Global State ---

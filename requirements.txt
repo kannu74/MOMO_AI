@@ -17,3 +17,5 @@ panda3d
 panda3d-gltf
 PyQt6
 PyGithub
+pyperclip
+pillow

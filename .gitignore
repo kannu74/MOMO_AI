@@ -2,3 +2,7 @@
 env/
 __pycache__/
 *.py[cod]
+data/
+audio/
+.venv/
+tts/models/

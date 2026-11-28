@@ -1,0 +1,8 @@
+{
+  "model": "CNN1D",
+  "threshold": 0.99,
+  "trained": "2026-11-26 01:59",
+  "test_recall": 0.6041666666666666,
+  "test_precision": 1.0,
+  "test_fa_per_hour": 0.37397468606902745
+}

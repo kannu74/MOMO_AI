@@ -1,188 +1,259 @@
-<h1>🤖 Momo</h1>
+# 🤖 Momo
 
-<h3>Description</h3>
-<p>
-Momo is a voice-activated, multimodal AI assistant designed to act as a hands-free "pair programmer" for developers. 
-She lives on the user's desktop, listening for a wake word, and uses a powerful Large Language Model (LLM) to perform common development tasks, explain code, and provide conversational assistance. 
-The entire interaction is handled through a natural voice interface and a 3D avatar, minimizing context switching and allowing developers to stay in their "flow state."
-</p>
+Momo is a **local-first voice assistant** for Windows. Say **"Hey Momo"**, talk, and she answers out loud. Wake word,
+speech-to-text, the LLM agent with its tools, and the voice all run on your own laptop. Only weather, music, Wikipedia,
+news and web search use the internet. Momo is a devoted, obedient servant who calls you **"Master"** (you can change
+this with `USER_TITLE` in `.env`).
 
-<h3>Features</h3>
-<ul>
-  <li><strong>Voice-Activated Core</strong>: Fully hands-free operation using a custom wake word ("Hey Momo"), real-time Speech-to-Text (STT), and Text-to-Speech (TTS).</li>
-  <li><strong>Modular Architecture</strong>: Each component (Wake Word, STT, LLM, TTS, Avatar) is a separate, swappable module, making the project easy to debug and upgrade.</li>
-  <li><strong>Hybrid AI Brain</strong>: Uses the powerful Gemini 1.5 Flash API for complex, creative tasks and a local, predefined response system for instant answers to common questions.</li>
-  <li><strong>Custom Expressive Voice</strong>: Integrates with ElevenLabs to use a custom-cloned, expressive voice, capable of performing non-speech sounds like sighs and laughs.</li>
-  <li><strong>Developer Copilot Toolkit</strong>: Automates common developer workflows like running Git commands, generating boilerplate code, suggesting commit messages, and explaining code snippets from the clipboard.</li>
-  <li><strong>Interactive 3D Avatar (In Progress)</strong>: Features a 3D anime avatar created in VRoid Studio and rendered in VSeeFace, which can be controlled by the Python script to show expressions and reactions.</li>
-</ul>
+```
+"Hey Momo"  →  wake word (openWakeWord)  →  speech-to-text (faster-whisper)
+            →  agent: fast paths / router LLM + tools (Ollama, llama3.1)  →  reply LLM
+            →  voice (Kokoro-82M)  +  avatar window (Tk)
+```
 
-<h3>Technologies Used</h3>
-<ul>
-    <li><strong>Core Language</strong>: Python</li>
-    <li><strong>3D Avatar Tools</strong>:
-        <ul>
-            <li><strong>VRoid Studio</strong>: Used for 3D model creation (.vrm format).</li>
-            <li><strong>VSeeFace</strong>: Used for real-time rendering and animation of the avatar.</li>
-        </ul>
-    </li>
-    <li><strong>Core Python Libraries</strong>:
-        <ul>
-            <li><strong><code>google-generativeai</code></strong>: Powers the AI's "brain" by connecting to the Gemini LLM.</li>
-            <li><strong><code>elevenlabs</code></strong>: Provides high-quality, custom voice output (TTS).</li>
-            <li><strong><code>faster-whisper</code></strong>: Handles high-performance, local Speech-to-Text (STT).</li>
-            <li><strong><code>openwakeword</code></strong>: Detects the "Hey Momo" wake word locally.</li>
-            <li><strong><code>sounddevice</code></strong>: Captures audio from the microphone for the STT and wake word.</li>
-            <li><strong><code>python-osc</code></strong>: Sends commands from Python to VSeeFace to control the avatar.</li>
-            <li><strong><code>playsound</code></strong>: A simple library for playing audio files like the TTS output.</li>
-            <li><strong><code>pydub</code></strong>: A robust library for audio manipulation and playback.</li>
-            <li><strong><code>numpy</code></strong>: Used for numerical audio data processing.</li>
-            <li><strong><code>onnxruntime</code></strong>: Runs the optimized wake word model (.onnx file).</li>
-            <li><strong><code>python-dotenv</code></strong>: Loads secret API keys from the <code>.env</code> file.</li>
-            <li><strong><code>pyperclip</code></strong>: Allows Momo to read code from the user's clipboard for the "explain code" feature.</li>
-            <li><strong><code>PyGithub</code></strong>: Enables Momo to interact with the GitHub API for features like creating repositories and issues.</li>
-            <li><strong><code>requests</code></strong>: For making general HTTP requests to any web API (e.g., weather, news).</li>
-            <li><strong><code>pyttsx3</code></strong>: An offline, fallback library for Text-to-Speech if APIs are unavailable.</li>
-        </ul>
-    </li>
-</ul>
+Progress log: [`PROGRESS.md`](PROGRESS.md) · Plan: [`ROADMAP.md`](ROADMAP.md) · Notes for contributors: [`CLAUDE.md`](CLAUDE.md)
 
+---
 
-<h3>📁 File Structure</h3>
-<pre><code>momo/
-├── .env               # 🔑 Stores all your secret API keys.
-├── main.py            # ▶️ The main script that runs the assistant's loop.
-├── requirements.txt   # 📦 All Python library dependencies.
-│
+## ✨ Current features
+
+### Voice & window
+- **Custom "Hey Momo" wake word**, trained for this project (`wakeword/models/hey_momo.onnx`).
+- **Follow-up listening:** after she answers, Momo keeps listening for ~8 s, so you don't need to say "Hey Momo" again.
+- **Local voice:** Kokoro-82M on the CPU, faster than real time. Pick a voice or blend voices with `MOMO_VOICE`.
+- **Avatar window:** animated GIFs for idle / listening / thinking / speaking, a dance animation while music plays,
+  a chat log, and live timers, alarms and reminders under the avatar (click **x** to cancel one).
+- **Instant replies** with no LLM call for small talk ("hello", "thank you", "who are you", "what can you do").
+- **Shut down:** say "Momo, shut down", click **⏻ Shut down**, or close the window. A popup asks you to confirm.
+
+### Music (YouTube via yt-dlp + mpv)
+- "Play *song / artist*", pause, resume, skip, stop, volume up / down / max / "set volume to 40".
+- **Playlists:** create, "add this song to *chill*", remove, list, delete, play in order or shuffled.
+- **Ducking:** when you say "Hey Momo", the music drops to half volume and keeps playing, then comes back up.
+
+### Everyday skills
+- **Time & date**, **timers**, **alarms**, **reminders** for any day ("friday", "5 december", "next monday").
+  Momo speaks when one goes off, and tells you about the ones you missed while she was off.
+- **Calendar:** add / show (a day or a week) / cancel events by voice. Can also read your Google Calendar (read-only).
+- **Lists:** to-do, shopping, or any named list, with several items at once ("add milk and eggs").
+- **Calculator** and **unit conversion** (length, mass, volume, temperature, speed, time, data, area).
+- **PC control:** system volume and media keys.
+- **Routines:** "good morning" (time, weather, today's alarms and reminders, optional playlist) and "good night".
+- **Memory:** "remember that…" saves a fact about you. "forget…" deletes it. Every conversation is saved in a local
+  SQLite database.
+
+### Knowledge (online, read-only)
+- **Weather** for your home city (now / today / tomorrow) from Open-Meteo.
+- **Wikipedia** answers ("who is…", "what is…").
+- **News headlines** by topic (Google News). Ask "tell me more about the second one" to hear that article.
+- **Web search (`google_it`)** for recent or changing things: "who won…", "price of…", "google *X*".
+  It searches DuckDuckGo and reads the top 3 pages.
+- **Open Netflix, Hotstar, Prime Video or YouTube** in your default browser, Brave, Chrome or Edge.
+  Momo only opens these 4 sites and never clicks anything on them.
+
+### Email (with your approval)
+- "Email mom that I'll be late" **writes a draft**. The email is sent only when you **click Approve & send** in the
+  window. Voice can cancel a draft but can never send one. Momo can only email addresses listed in `EMAIL_CONTACTS`.
+
+### Hindi / Hinglish mode
+- Say "Momo, switch to Hindi" (or click **EN | हिंदी**). This switches speech recognition, the voice and the reply
+  language. Hinglish commands like "Arijit Singh ka gaana bajao", "awaaz badhao" and "alarm lagao" work.
+
+### Security
+- Web text reaches the LLM only through a sanitiser that removes prompt injections (`security/extractor.py`), and only
+  the reply model sees it. That model has no tools.
+- Momo can only contact allowlisted hosts. Web search reads public HTTPS pages only: no local network, no forms,
+  no logins.
+- Every tool argument is checked against a schema. Every security event is logged to the database.
+
+---
+
+## 💻 Laptop this runs on
+
+| Part | Spec |
+|---|---|
+| Laptop | ASUS TUF Gaming A16 (FA607NUG) |
+| CPU | AMD Ryzen 7 7445HS, 6 cores / 12 threads (+ Radeon 740M integrated graphics) |
+| GPU | NVIDIA GeForce RTX 4050 Laptop, **6 GB VRAM** (driver 621.14) |
+| RAM | 16 GB |
+| Storage | 1 TB NVMe SSD (WD SN5000S) |
+| OS | Windows 11 Home (build 26200) |
+| Software | Python 3.10.11 (`.venv`), Ollama 0.17.1, mpv (winget), Git 2.52 |
+
+**How the hardware is shared:** only the LLM uses the GPU. llama3.1 8B (~6 GB with a 6k context) doesn't fully
+fit in 6 GB, so it runs ~85% on the GPU and the rest on the CPU. That makes it 2-3x slower than `qwen3:4b-instruct`,
+which fits entirely on the GPU. The voice, Whisper and the wake word all run on the CPU. PyTorch / CUDA are not needed.
+
+**Minimum to run it elsewhere:** Windows 10/11, 16 GB RAM, a microphone, and ideally an NVIDIA GPU with at least
+4 GB of VRAM (use `OLLAMA_MODEL=qwen3:4b-instruct` on smaller GPUs). It runs without a GPU, just slowly.
+
+---
+
+## 🚀 First-time setup (new laptop)
+
+Run these in **PowerShell**.
+
+```powershell
+# 1. Get the code
+git clone https://github.com/kannu74/MOMO_AI.git
+cd MOMO_AI
+git checkout voice-assistant-ollama        # the current working branch
+
+# 2. Python 3.10 virtual environment + packages
+py -3.10 -m venv .venv
+.\.venv\Scripts\pip install -r requirements.txt
+
+# 3. External apps
+winget install Ollama.Ollama
+winget install mpv-player.mpv-CI.MSVC
+ollama pull llama3.1                       # default LLM (or: ollama pull qwen3:4b-instruct)
+
+# 4. Voice model files (~205 MB) into tts\models\
+mkdir tts\models -Force
+Invoke-WebRequest https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.fp16.onnx -OutFile tts\models\kokoro-v1.0.fp16.onnx
+Invoke-WebRequest https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin -OutFile tts\models\voices-v1.0.bin
+
+# 5. Settings
+copy .env.example .env                     # then open .env and fill it in
+```
+
+**`.env`** holds every setting, and anything in `config.py` can be overridden there. Settings you will usually want
+to change:
+
+| Setting | What it does |
+|---|---|
+| `OLLAMA_MODEL` | `llama3.1:latest` (default) or `qwen3:4b-instruct` (faster, fits on the GPU) |
+| `MIC_NAME` | Part of your microphone's name (default `USB Condenser`) |
+| `USER_TITLE` | What Momo calls you (default `Master`) |
+| `MOMO_VOICE` | Kokoro voice (default `af_heart`). Run `scripts\voice_samples.py` to hear all of them |
+| `HOME_NAME`, `HOME_LAT`, `HOME_LON` | City used for weather (default Bengaluru) |
+| `EMAIL_CONTACTS`, `SMTP_*` | Who Momo may email, and your Gmail **App Password** |
+| `CALENDAR_ICS_URL` | Google Calendar → Settings → "Secret address in iCal format" |
+| `NEWS_TOPICS`, `NEWS_REGION` | News topics and region Momo refreshes in the background |
+| `GOOGLE_IT` | `1` = web search on, `0` = off |
+| `LANGUAGE` | `en` or `hi` at start-up (Momo remembers the last choice you made) |
+
+`.env`, `data/`, `audio/` and `tts/models/` are in `.gitignore`. They stay on your laptop and are never pushed.
+
+---
+
+## ▶️ Booting Momo up (every day)
+
+> **Note:** the commands below use the folder on the main dev laptop
+> (`C:\Users\Akshar\Desktop\momo again\MOMO_AI`). On another machine, `cd` into wherever you cloned `MOMO_AI`.
+>
+> **Note:** `MIC_NAME` defaults to `USB Condenser` (the mic on the dev laptop). If you use a different microphone,
+> set `MIC_NAME` in `.env` to part of its name, or Momo won't hear you.
+
+```powershell
+cd "C:\Users\Akshar\Desktop\momo again\MOMO_AI"
+
+ollama list                                 # check Ollama is running (start the Ollama app if this fails)
+.\.venv\Scripts\python.exe main_ui.py       # start Momo: window + voice loop
+```
+
+Wait for the window to show that she's listening, then say **"Hey Momo"**. The first reply after start-up takes
+~7 s while the model loads. After that, replies take a few seconds.
+
+Other useful commands:
+
+```powershell
+.\.venv\Scripts\python.exe main_ui.py --demo            # preview the window only (no models, no mic)
+.\.venv\Scripts\python.exe main.py                      # voice loop in the terminal, no window
+.\.venv\Scripts\python.exe scripts\show_convos.py last  # read the latest conversation
+.\.venv\Scripts\python.exe scripts\voice_samples.py     # hear every Kokoro voice
+.\.venv\Scripts\python.exe scripts\test_google_it.py    # security / web-search tests (offline; add --live for one real search)
+.\.venv\Scripts\python.exe scripts\eval_models.py security   # prompt-injection eval (no network)
+```
+
+Logs are written to `data\momo.log`.
+
+### Things to try saying
+> "Hey Momo, play some Arijit Singh" · "add this to my chill playlist" · "volume max"
+> "set a timer for 10 minutes" · "remind me on friday at 6 pm to call mom" · "wake me up at 7"
+> "what's the weather tomorrow" · "what's in the news" · "tell me more about the second one"
+> "who won the last F1 race" · "add milk and eggs to my shopping list" · "what's 15% of 2400"
+> "open Netflix in Brave" · "good morning" · "remember that my favourite colour is blue"
+> "switch to Hindi" · "Momo, shut down"
+
+### If something doesn't work
+| Problem | Fix |
+|---|---|
+| She never hears "Hey Momo" | Check `MIC_NAME` in `.env` matches your mic. Speak closer, or lower `WAKEWORD_THRESHOLD` |
+| "Can't reach the model" / no reply | Start the Ollama app, then check with `ollama list` |
+| Music won't play | Check mpv is installed (`winget install mpv-player.mpv-CI.MSVC`), or set `MPV_PATH` |
+| Very slow replies | Use `OLLAMA_MODEL=qwen3:4b-instruct` and close other apps that use the GPU |
+| "Can't search right now" | DuckDuckGo blocked the IP after too many searches. Wait a few hours |
+| No voice / crash at start | Check that both Kokoro files are in `tts\models\` |
+
+---
+
+## ⬆️ Pushing changes to GitHub
+
+Repo: <https://github.com/kannu74/MOMO_AI>. Day-to-day work happens on **`voice-assistant-ollama`**. `main` is the
+stable branch.
+
+```powershell
+cd "C:\Users\Akshar\Desktop\momo again\MOMO_AI"
+
+git status                                  # see what changed
+git pull                                    # get teammates' changes first
+git add -A                                  # stage everything (.env, data/, models are ignored automatically)
+git status                                  # double-check that .env is NOT in the list
+git commit -m "Short description of what you changed"
+git push                                    # push to origin/voice-assistant-ollama
+```
+
+Working on a new feature in its own branch:
+
+```powershell
+git checkout -b feature/my-feature          # create the branch and switch to it
+# ...make changes, then add + commit as above...
+git push -u origin feature/my-feature       # first push of the new branch
+# Open a pull request on GitHub (or: gh pr create --base main)
+```
+
+Other useful commands:
+
+```powershell
+git branch -a                               # list local + remote branches
+git checkout voice-assistant-ollama         # switch back to the working branch
+git log --oneline -10                       # recent commits
+git restore <file>                          # throw away uncommitted changes to one file
+```
+
+⚠️ **Never commit `.env`.** It holds your email password and private calendar link. It is in `.gitignore`. If
+`git status` ever lists it, run `git rm --cached .env` before you commit.
+
+---
+
+## 📁 Project structure
+
+```
+MOMO_AI/
+├── main_ui.py          # ▶️ Start here: Tk window (avatar, chat, timers) + runs main.py's loop in a thread
+├── main.py             # Voice loop: wake word → record → STT → agent → speak; scheduler for timers/alarms
+├── config.py           # Every setting (each one can be overridden in .env)
+├── requirements.txt    # Python packages (+ model download links in the header)
+├── .env.example        # Copy to .env
 ├── backend/
-│   └── core.py        # 🧠 Handles communication with the LLM (Gemini).
-│
-├── gui/
-│   └── avatar.py      # 🧑‍🎨 Controls the 3D avatar's animations.
-│
-├── stt/
-│   └── listen.py      # 👂 Handles Speech-to-Text (STT).
-│
-├── tts/
-│   └── speak.py       # 👄 Handles Text-to-Speech (TTS).
-│
-└── wakeword/
-    ├── detector.py    # 🚨 Handles wake word detection.
-    └── models/        # 📁 Stores the .onnx wake word models.
-</code></pre>
+│   ├── core.py         # Agent: normalise → fast paths / router LLM → tools → reply
+│   ├── persona.py      # Momo's character + router prompt
+│   ├── database.py     # SQLite memory (data/memory.db) + migrations
+│   ├── language.py     # English / Hindi mode
+│   └── hindi.py        # Hindi reply templates
+├── tools/              # Everything Momo can do (registry in __init__.py)
+│   ├── music.py  weather.py  clock.py  dates.py  calendar_tool.py  lists.py
+│   ├── calc.py   system.py   routines.py  info.py  search.py  entertainment.py  lyrics.py
+├── security/           # egress allowlist, injection extractor, email outbox/approval, audit log
+├── stt/listen.py       # faster-whisper speech-to-text (CPU)
+├── tts/speak.py        # Kokoro voice (CPU); models in tts/models/ (not in git)
+├── wakeword/           # openWakeWord detector + hey_momo.onnx
+├── gui/avatar.py       # Avatar helper
+├── assets/             # Avatar GIFs
+└── scripts/            # Evals, tests, voice samples, conversation viewer
+```
 
-<h3>Setup and Installation</h3>
-
-<h4>Prerequisites (Additional Installations)</h4>
-<p>Before installing Python libraries, you need one external tool:</p>
-<ul>
-  <li><strong>FFmpeg:</strong> Required by the <code>faster-whisper</code> (STT) library to process audio. 
-  <a href="https://ffmpeg.org/download.html">Download FFmpeg</a> and add it to your system PATH.</li>
-</ul>
-
-<h4>1. Clone the Repository</h4>
-<pre><code>git clone &lt;https://github.com/kannu74/MOMO_AI&gt;
-cd momo-ai-assistant
-</code></pre>
-
-<h4>2. Create and Activate Virtual Environment</h4>
-<pre><code># Windows
-python -m venv venv
-.\venv\Scripts\activate
-
-# macOS/Linux
-python3 -m venv venv
-source venv/bin/activate
-</code></pre>
-
-<h4>3. Install Dependencies</h4>
-<pre><code>pip install -r requirements.txt
-</code></pre>
-
-<h4>4. API Key Configuration</h4>
-<p>Create a file named <code>.env</code> in the root directory. This file is required for the assistant to function.</p>
-<ul>
-  <li><strong>Required Keys:</strong>
-    <ol>
-      <li><code>GOOGLE_API_KEY</code>: From Google AI Studio for the Gemini LLM.</li>
-      <li><code>ELEVEN_API_KEY</code>: From ElevenLabs for the TTS.</li>
-      <li><code>ELEVEN_VOICE_ID</code>: The specific ID of your custom Momo voice from ElevenLabs.</li>
-    </ol>
-  </li>
-  <li><strong>Format:</strong> Your <code>.env</code> file must look exactly like this:</li>
-</ul>
-<pre><code># .env file
-GOOGLE_API_KEY=your_gemini_api_key_here
-ELEVEN_API_KEY=your_elevenlabs_api_key_here
-ELEVEN_VOICE_ID=your_momo_voice_id_here
-</code></pre>
-
-<h3>▶️ How to Run</h3>
-<pre><code>python main.py
-</code></pre>
-
-<h3>🧠 LLM Context Prompt for Teammates</h3>
-<p>To get your own AI assistant (like Gemini or ChatGPT) up to speed on this project, copy and paste the entire prompt below:</p>
-<pre><code>
-You are an expert software developer reviewing my project, "Momo AI". Here is a complete summary.
-
-Project Goal:
-Momo is a voice-activated, multimodal AI assistant built in Python. Its primary purpose is to act as a "pair programmer" for developers, handling repetitive tasks through voice commands to minimize context switching and keep the developer in a state of flow.
-
-Current Status:
-The core audio pipeline is fully functional. It can detect a wake word, transcribe a spoken command, get a response from an LLM, and speak the response back using a custom voice. The next phase is to integrate a 3D avatar with computer vision.
-
-Tech Stack:
-- Wake Word: openwakeword using an .onnx model.
-- Speech-to-Text (STT): faster-whisper (tiny.en model).
-- AI Brain (LLM): Gemini 1.5 Flash API.
-- Text-to-Speech (TTS): ElevenLabs API with a custom-cloned voice.
-- System Interaction: Python's subprocess and pyperclip libraries for developer features.
-- Required API Keys: GOOGLE_API_KEY, ELEVEN_API_KEY, ELEVEN_VOICE_ID.
-- External Dependencies: FFmpeg is required for faster-whisper.
-
-File Structure:
-- main.py: The central script that runs the main application loop.
-- backend/core.py: Manages all communication with the Gemini API.
-- tts/speak.py: Manages all communication with the ElevenLabs API.
-- stt/listen.py: Handles audio recording and transcription.
-- wakeword/detector.py: Listens for the wake word.
-- gui/avatar.py: This is where the future code to control the 3D avatar will go.
-
-Next Steps:
-The team's next goal is to implement the developer-focused features (e.g., voice-controlled Git commands, boilerplate code generation) and integrate the 3D avatar using VSeeFace and OpenCV.
-
-Based on this information, please act as my expert assistant for this project.
-</code></pre>
-<h3>Project Workflow</h3>
-<p>
-Momo operates on a continuous loop, managed by <code>main.py</code>, that follows a clear, modular sequence. The architecture is designed to be fast and responsive by handling simple queries locally and deferring complex tasks to a powerful cloud-based LLM.
-</p>
-<ol>
-    <li>
-        <strong>Wake Word Detection</strong>: The assistant is always passively listening using <code>openwakeword</code>. When it detects the "Hey Momo" phrase, it activates the main interaction loop.
-    </li>
-    <li>
-        <strong>Speech-to-Text (STT)</strong>: Once activated, the microphone actively records the user's command. This audio is processed locally by <code>faster-whisper</code>, which transcribes the speech into a text string.
-    </li>
-    <li>
-        <strong>Intent Parsing</strong>: The main script (<code>main.py</code>) analyzes the transcribed text to decide what to do next. This acts as a "router" for the AI's brain.
-    </li>
-    <li>
-        <strong>Hybrid Response Generation</strong>:
-        <ul>
-            <li><strong>Simple Intent</strong>: If the command is a basic, predefined query (e.g., "hello", "how are you?"), the system instantly retrieves a random response from a local library to be fast and efficient.</li>
-            <li><strong>Developer/Complex Intent</strong>: For any other query, the text is sent to the <strong>Gemini 1.5 Flash API</strong>. The LLM then generates an intelligent, context-aware, and in-character response.</li>
-        </ul>
-    </li>
-    <li>
-        <strong>Multimodal Output</strong>: The final text response from the LLM is sent to two places simultaneously:
-        <ul>
-            <li>The <strong>ElevenLabs API</strong> converts the text into high-quality, expressive audio in Momo's custom voice.</li>
-            <li>The <strong>Avatar Controller</strong> (<code>gui/avatar.py</code>) sends a command via OSC to <strong>VSeeFace</strong> to trigger a corresponding visual animation (e.g., a smile, a blush, or a thoughtful expression).</li>
-        </ul>
-    </li>
-    <li>
-        <strong>Loop Reset</strong>: After the audio is played and the avatar has animated, the system returns to its passive state, listening for the wake word to begin the next interaction.
-    </li>
-</ol>
+## 🛠 Tech stack
+Python 3.10 · Ollama (llama3.1 8B / qwen3:4b) via LangChain · faster-whisper · openWakeWord · Kokoro-82M (ONNX) ·
+yt-dlp + mpv · SQLite · Tkinter · Open-Meteo · Wikipedia · Google News · DuckDuckGo
